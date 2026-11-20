@@ -1,0 +1,4 @@
+{
+ "realm":"mfaro","enabled":true,"sslRequired":"external","registrationAllowed":true,"verifyEmail":true,"resetPasswordAllowed":true,"rememberMe":false,"loginWithEmailAllowed":true,"duplicateEmailsAllowed":false,"bruteForceProtected":true,
+ "clients":[{"clientId":"mfaro-billing","name":"Mfaro Billing backend","enabled":true,"protocol":"openid-connect","publicClient":false,"clientAuthenticatorType":"client-secret","standardFlowEnabled":true,"implicitFlowEnabled":false,"directAccessGrantsEnabled":false,"serviceAccountsEnabled":false,"redirectUris":["https://api.billing.mfarosoftware.africa/api/v1/auth/callback"],"webOrigins":[],"attributes":{"pkce.code.challenge.method":"S256","post.logout.redirect.uris":"https://billing.mfarosoftware.africa/","backchannel.logout.url":"https://api.billing.mfarosoftware.africa/api/v1/auth/backchannel-logout","backchannel.logout.session.required":"true"},"defaultClientScopes":["profile","email","roles"]}]
+}

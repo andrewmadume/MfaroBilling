@@ -1,0 +1,10 @@
+{
+  "name": "@mfaro/customer-portal",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5173 --configLoader native",
+    "build": "vite build --configLoader native",
+    "preview": "vite preview --configLoader native --host 127.0.0.1 --port 5173"
+  }
+}

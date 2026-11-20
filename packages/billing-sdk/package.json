@@ -1,0 +1,6 @@
+{
+  "name": "@mfaro/billing-sdk",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0"
+}

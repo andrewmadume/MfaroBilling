@@ -1,0 +1,10 @@
+{
+  "name": "@mfaro/admin-dashboard",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5174 --configLoader native",
+    "build": "vite build --configLoader native",
+    "preview": "vite preview --configLoader native --host 127.0.0.1 --port 5174"
+  }
+}

@@ -1,0 +1,12 @@
+node_modules/
+**/dist/
+**/vendor/
+**/.env
+**/.env.local
+**/database/*.sqlite*
+**/storage/*.key
+**/storage/logs/*
+**/storage/framework/sessions/*
+**/storage/framework/views/*.php
+**/storage/framework/cache/data/*
+**/bootstrap/cache/*.php
