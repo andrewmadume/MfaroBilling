@@ -1,3 +1,4 @@
+import { RefundDialog } from "./lifecycle";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -203,6 +204,15 @@ function RevenueChart({ data }: { data: Analytics["revenue_series"] }) {
   );
 }
 const columns: Record<string, string[]> = {
+  "credit-notes": [
+    "number",
+    "organisation_id",
+    "subtotal",
+    "tax",
+    "total",
+    "currency",
+    "issued_at",
+  ],
   customers: ["name", "email", "is_admin", "created_at"],
   organisations: ["name", "billing_email", "created_at"],
   products: ["name", "code", "status", "website_url"],
@@ -250,6 +260,7 @@ export function AdminResource({
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [edit, setEdit] = useState<Row | null>(null);
+  const [refund, setRefund] = useState<Row | null>(null);
   const [inspect, setInspect] = useState<Row | null>(null);
   const [create, setCreate] = useState(false);
   const [secret, setSecret] = useState("");
@@ -356,6 +367,15 @@ export function AdminResource({
                         >
                           View
                         </button>
+                        {resource === "payments" &&
+                        row.status === "completed" ? (
+                          <button
+                            className="secondary"
+                            onClick={() => setRefund(row)}
+                          >
+                            Refund
+                          </button>
+                        ) : null}
                         {editable ? (
                           <>
                             <button
@@ -482,6 +502,13 @@ export function AdminResource({
             Copy credential
           </button>
         </Modal>
+      ) : null}
+      {refund ? (
+        <RefundDialog
+          paymentId={val(refund.id)}
+          amount={val(refund.amount)}
+          onClose={() => setRefund(null)}
+        />
       ) : null}
       {inspect ? (
         <Modal title={`${title} record`} onClose={() => setInspect(null)}>

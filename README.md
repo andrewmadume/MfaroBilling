@@ -12,9 +12,13 @@ Organisation-owned subscription billing for Mfaro Software. A working Laravel AP
 - Independent and bundled subscriptions, immutable agreement snapshots, optional trials, coupon discounts, overlap protection, period-end changes, cancellation and lifecycle commands.
 - PayFast hosted recurring checkout, signature/source/server ITN checks, amount/reference/token reconciliation, transactional idempotency, provider schedule updates and cancellation. Credentials are not supplied; external operations remain unverified.
 - Effective feature/limit merging across subscriptions, product/organisation-scoped API credentials, bounded SDK cache and atomic monthly transaction/lifetime storage counters.
-- Invoices, PDF download, payment history, refund-recording API, basic MRR/ARR/ARPA and cash reporting, CSV payment export.
+- Invoices, PDF download, payment history, original-source refund API, credit-note ledger and PDFs, basic MRR/ARR/ARPA and cash reporting, CSV payment export.
 - Responsive portals, light/dark mode, searching and pagination, support tickets, audit records, encrypted settings, notification outbox and branded email.
 - Customer PWA manifest/icons, public-asset-only caching, offline page, install prompt where supported, and update notification.
+
+## Phase 2 — billing lifecycle
+
+Implemented customer pause/resume and provider-managed payment recovery, durable cancellation/refund operations, refund eligibility/confirmation, credit-note tax allocation and PDFs, and administrator reconciliation with audited evidence. Gateway refund execution defaults to disabled until the merchant capability has been configured and accepted. See [Phase 2](docs/PHASE_2.md).
 
 ## Repository
 

@@ -54,6 +54,7 @@ Configure company/legal address, VAT number and TAX_BASIS_POINTS only after busi
 ```sh
 php artisan migrate --force
 php artisan db:seed --force
+php artisan billing:backfill-credit-notes
 php artisan optimize
 php artisan billing:doctor
 ```
@@ -74,7 +75,7 @@ Create one cPanel cron entry per production deployment (replace paths):
 * * * * * cd /home/CPANEL_USER/apps/mfaro-billing/current/apps/billing-api && /opt/cpanel/ea-php84/root/usr/bin/php artisan schedule:run >> /home/CPANEL_USER/logs/mfaro-scheduler.log 2>&1
 ```
 
-The scheduler runs lifecycle/reminders, notification delivery, hourly provider reconciliation and a short `queue:work --stop-when-empty` invocation. Database-backed distributed locks and withoutOverlapping protect concurrency. Do not run another schedule on a staging installation pointed to the production DB. Shared hosts can kill long tasks; verify execution duration and cron limits. Monitor failed_jobs and undelivered outbox rows. On a VPS, use supervised workers and one scheduler instead.
+The scheduler runs lifecycle/reminders, notification delivery, hourly provider reconciliation, five-minute read-only operation reconciliation and a short `queue:work --stop-when-empty` invocation. Database-backed distributed locks and withoutOverlapping protect concurrency. Do not run another schedule on a staging installation pointed to the production DB. Shared hosts can kill long tasks; verify execution duration and cron limits. Monitor failed_jobs and undelivered outbox rows. On a VPS, use supervised workers and one scheduler instead.
 
 ## Acceptance and operations
 

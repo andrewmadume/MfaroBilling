@@ -7,6 +7,7 @@ use App\Models\OfferPrice;
 use App\Models\Organisation;
 use App\Models\Product;
 use App\Models\Subscription;
+use App\Payments\GatewayOperationService;
 use App\Payments\PayFastGateway;
 use App\Services\BillingService;
 use App\Services\Money;
@@ -19,7 +20,7 @@ class PlanChangeService
 
     public function quote(Subscription $s, string $priceId): array
     {
-        abort_unless($s->status === 'active' && $s->gateway_token && ! $s->cancel_at_period_end, 409, 'Only active provider subscriptions can change plans.');
+        abort_unless($s->status === 'active' && ! $s->paused_at && $s->gateway_status === 'active' && $s->gateway_token && ! $s->cancel_at_period_end, 409, 'Only active provider subscriptions can change plans.');
         abort_unless($s->period_end && $s->period_end->gt(now()->addDay()), 409, 'Changes require at least 24 hours before renewal.');
         $price = OfferPrice::findOrFail($priceId);
         $offer = Offer::where('status', 'active')->findOrFail($price->offer_id);
@@ -55,6 +56,7 @@ class PlanChangeService
                 return (array) $existing + ['_new' => false];
             }
             abort_if(DB::table('subscription_changes')->where('subscription_id', $s->id)->whereIn('status', ['applying', 'scheduled', 'needs_reconciliation'])->exists(), 409, 'A plan change is already pending.');
+            abort_if(DB::table('gateway_operations')->where('subscription_id', $s->id)->whereIn('status', GatewayOperationService::UNRESOLVED)->exists(), 409, 'A provider operation is unresolved. Reconcile it before changing plans.');
             $q = $this->quote($s, $priceId);
             abort_unless(hash_equals($q['quote_hash'], $quoteHash), 409, 'The quote changed. Review a fresh quote before confirming.');
             $row = ['id' => (string) Str::uuid(), 'organisation_id' => $s->organisation_id, 'subscription_id' => $s->id, 'offer_price_id' => $priceId, 'idempotency_key' => $key, 'quote_hash' => $quoteHash, 'status' => 'applying', 'amount' => $q['amount'], 'snapshot' => json_encode($q['snapshot']), 'effective_at' => $s->period_end, 'created_at' => now(), 'updated_at' => now()];
@@ -77,7 +79,7 @@ class PlanChangeService
 
             return $change;
         } catch (\Throwable $e) {
-            DB::table('subscription_changes')->where('id',$change['id'])->update(['status' => 'needs_reconciliation', 'updated_at' => now()]);
+            DB::table('subscription_changes')->where('id', $change['id'])->update(['status' => 'needs_reconciliation', 'updated_at' => now()]);
             throw $e;
         }
     }

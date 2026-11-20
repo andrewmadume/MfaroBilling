@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'subscription_pause' => ['Subscription collections paused', 'Your provider schedule is paused. Existing paid access remains until its period ends; no free extension is granted.'],
+    'subscription_resume' => ['Subscription collections resumed', 'Provider collections have resumed. Expired access is restored only after a verified payment.'],
+    'subscription_cancel' => ['Subscription cancellation confirmed', 'Your provider schedule has been cancelled. Review your remaining paid period in the portal.'],
+    'refund_confirmation' => ['Refund confirmed', 'Your refund has been recorded and a credit note is available in Billing. Subscription cancellation is a separate action.'],
     'welcome' => ['Welcome to Mfaro Software', 'Your verified Mfaro account is ready. Create an organisation to explore software and manage your team.'],
     'trial_started' => ['Your trial has started', 'Your trial access is available in your organisation workspace. No payment mandate was created.'],
     'trial_ending' => ['Your trial is ending soon', 'Review your plan and authorise a recurring payment if you would like to keep using the included products.'],

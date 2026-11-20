@@ -15,6 +15,6 @@ class Subscription extends Model
 
     protected function casts(): array
     {
-        return ['snapshot' => 'array', 'period_start' => 'immutable_datetime', 'period_end' => 'immutable_datetime', 'trial_ends_at' => 'immutable_datetime', 'grace_ends_at' => 'immutable_datetime', 'cancel_at_period_end' => 'boolean'];
+        return ['paused_at' => 'immutable_datetime', 'snapshot' => 'array', 'period_start' => 'immutable_datetime', 'period_end' => 'immutable_datetime', 'trial_ends_at' => 'immutable_datetime', 'grace_ends_at' => 'immutable_datetime', 'cancel_at_period_end' => 'boolean'];
     }
 }

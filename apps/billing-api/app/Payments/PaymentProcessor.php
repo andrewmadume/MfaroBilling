@@ -55,14 +55,16 @@ class PaymentProcessor
                     $start = $s->period_end && $s->period_end->isFuture() ? $s->period_end : now()->toImmutable();
                     $end = $s->interval === 'annual' ? $start->addYearNoOverflow() : $start->addMonthNoOverflow();
                     $this->billing->transition($s, 'active');
-                    $s->update(['period_start' => $start, 'period_end' => $end, 'grace_ends_at' => null, 'gateway_token' => $event['token'], 'gateway_status' => 'active']);
+                    $s->update(['period_start' => $start, 'period_end' => $end, 'grace_ends_at' => null, 'gateway_token' => $event['token'], 'gateway_status' => $s->paused_at ? 'paused' : 'active']);
                     $this->billing->grant($s);
                 }
                 $this->billing->event($s, 'payment_received', ['payment_id' => $p->id, 'needs_review' => $terminal]);
                 $this->billing->notify($s, 'payment_confirmation', 'payment:'.$p->id, ['invoice_number' => $i->number]);
             } elseif ($event['payment_status'] === 'FAILED') {
                 if (in_array($s->status, ['active', 'past_due', 'grace_period'], true)) {
-                    $this->billing->transition($s, 'past_due');
+                    if ($s->status === 'active') {
+                        $this->billing->transition($s, 'past_due');
+                    }
                     $s->update(['grace_ends_at' => ($s->grace_ends_at ?? now()->addDays(config('billing.grace_days')))]);
                     $i = Invoice::where('subscription_id', $s->id)->where('status', 'open')->first() ?? $this->billing->invoice($s);
                     DB::table('payment_attempts')->insert(['id' => Str::uuid(), 'organisation_id' => $s->organisation_id, 'subscription_id' => $s->id, 'invoice_id' => $i->id, 'status' => 'failed', 'amount' => $s->amount, 'currency' => $s->currency, 'created_at' => now(), 'updated_at' => now()]);
@@ -70,7 +72,7 @@ class PaymentProcessor
                 }
             } elseif ($s->status !== 'cancelled' && ! in_array($s->status, ['expired'], true)) {
                 $s->update(['cancel_at_period_end' => true, 'gateway_status' => 'cancelled']);
-                $this->billing->event($s,'provider_cancelled');
+                $this->billing->event($s, 'provider_cancelled');
             }
         }, 3);
     }

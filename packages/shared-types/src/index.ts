@@ -52,6 +52,9 @@ export interface Offer {
   items: Plan[];
 }
 export interface Subscription {
+  paused_at: string | null;
+  pause_cycles: number | null;
+  gateway_status: string | null;
   id: string;
   organisation_id: string;
   status: string;

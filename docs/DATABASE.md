@@ -12,7 +12,7 @@ Production target: MySQL 8, InnoDB, utf8mb4, database `mfaro_billing` (cPanel ma
 | Access | entitlement_grants, usage_records, api_clients, api_client_credentials, product_organisation_access |
 | Operations | idempotency_keys, outbox_events, notifications, audit_logs, system_settings, support_tickets, jobs, job_batches, failed_jobs, cache, cache_locks, password_reset_tokens, migrations |
 
-The original brief names additional tables for future capabilities. They have not been added as empty placeholders. A separate refund credit-note ledger, per-plan/multi-rate taxation, independent payment-method vault and richer scheduling/history models are still gaps; see READINESS.md.
+The original brief names additional tables for future capabilities. They have not been added as empty placeholders. Phase 2 adds gateway_operations, credit_notes and subscription pause metadata. Per-plan/multi-rate taxation, an independent payment-method vault and richer scheduling/history models remain gaps; see READINESS.md.
 
 Business records use UUID primary keys, identity users use Laravel's numeric key, and tenant and subscription FKs are indexed. Financial ownership FKs restrict deletion. Nullable unique plan/bundle associations give one offer per plan or bundle. Payment provider references, webhook keys, organisation idempotency keys and invitation token hashes are unique.
 

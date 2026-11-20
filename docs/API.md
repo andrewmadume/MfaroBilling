@@ -58,6 +58,16 @@ On denial, allowed=false, plan/status/valid_until are null, sources empty, and f
 
 POST `/access/usage` uses the same credential and context with metric `transactions` or `storage_bytes`, positive integer quantity and a producer `event_key`. Records and quota checks run under an organisation lock; duplicate identical events do not consume twice, conflicting reuse returns 409. Product user/branch counts are enforced locally against returned caps.
 
+## Phase 2 lifecycle and refunds
+
+POST `/subscriptions/{id}/pause` takes cycles (1–12); POST `/subscriptions/{id}/resume` resumes a voluntarily paused mandate. Both require Idempotency-Key. Cancellation of a provider mandate now uses the same operation contract. Successful operations return status=succeeded; uncertain results return HTTP 202 with status=needs_reconciliation. Do not submit another key after an uncertain result.
+
+GET `/subscriptions/{id}/recovery` inspects provider state and returns the official card-update link. It creates no charge or additional mandate and never activates access. GET `/subscriptions/{id}/operations` exposes that organisation's operation history to billing-authorised roles.
+
+Administrators use POST `/admin/payments/{id}/refund-quote` with amount/reason, then POST `/admin/payments/{id}/refund-requests` with the exact quote_hash and Idempotency-Key. Eligibility is rechecked and execution is disabled unless PAYFAST_REFUNDS_ENABLED=true. Only PAYMENT_SOURCE is supported. The existing `/admin/payments/{id}/refunds` endpoint records an already completed external refund without sending money and now creates a credit note.
+
+GET `/credit-notes` and GET `/credit-notes/{id}/download` are tenant scoped. GET `/admin/gateway-operations` lists provider intents. POST `/admin/gateway-operations/{id}/reconcile` never resends a mutation. POST `/admin/gateway-operations/{id}/resolve` requires outcome confirmed_processed or confirmed_not_processed, evidence_reference and attested=true. This records an accountable operator determination; it must follow merchant-record inspection. A processed lifecycle action also requires provider fetch to confirm the requested state.
+
 ## Responses and pagination
 
 Collections use Laravel pagination: data, current_page, last_page, per_page, total, links. Catalogue arrays and membership lists are direct arrays. Errors contain message; validation errors additionally contain errors mapping field names to arrays. 401 unauthenticated, 403 forbidden, 404 absent/inaccessible record, 409 conflict/overlap/quota, 422 invalid input, 429 rate limit, 502 provider failure and 503 unconfigured service. Session expiry can return 419 for CSRF failure; refresh the session and sign in again.

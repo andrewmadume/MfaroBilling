@@ -24,7 +24,7 @@ class ReconcileGateway extends Command
             return 0;
         }
 
-return Cache::lock('billing-reconcile', 3500)->get(function () use ($gateway, $b) {
+        return Cache::lock('billing-reconcile', 3500)->get(function () use ($gateway, $b) {
             Subscription::whereNotNull('gateway_token')->whereNotIn('status', ['cancelled', 'expired'])->orderBy('id')->chunk(50, function ($rows) use ($gateway, $b) {
                 foreach ($rows as $s) {
                     try {
@@ -40,7 +40,7 @@ return Cache::lock('billing-reconcile', 3500)->get(function () use ($gateway, $b
                         if ($status === 'cancelled') {
                             $s->update(['cancel_at_period_end' => true, 'gateway_status' => 'cancelled']);
                         } elseif ($status === 'active') {
-                            $s->update(['gateway_status' => 'active']);
+                            $s->update(['gateway_status' => 'active', 'paused_at' => null, 'pause_cycles' => null]);
                         }if ($mismatch) {
                             $b->notify($s, 'security_alert', 'reconcile:'.$s->id.':'.now()->format('Y-m-d'));
                         }

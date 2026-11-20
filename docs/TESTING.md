@@ -2,7 +2,7 @@
 
 Development verification date: 20 November 2026.
 
-The backend suite currently contains 62 passing tests/160 assertions, plus 4 passing integration-SDK tests. See the checked-in test files for exact coverage and rerun after changes. Local migrations and seeders executed successfully on SQLite. Both React applications passed TypeScript checking and production compilation. PHP and JavaScript dependency audits reported no known vulnerabilities in the installed set at the time checked.
+The Phase 1 baseline contained 62 passing tests/160 assertions. The final Phase 2 backend run passed 90 tests/312 assertions, including 28 new lifecycle and refund tests; details are recorded in PHASE_2.md. The 4 integration-SDK tests continue to pass. See the checked-in test files for exact coverage and rerun after changes. Local migrations and seeders executed successfully on SQLite. Both React applications passed TypeScript checking and production compilation. PHP and JavaScript dependency audits reported no known vulnerabilities in the installed set at the time checked.
 
 ## Automated coverage
 

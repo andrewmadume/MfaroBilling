@@ -1,3 +1,4 @@
+import { CreditNotes, GatewayOperations } from "./lifecycle";
 import {
   useEffect,
   useState,
@@ -90,6 +91,7 @@ const customerNav = [
   ["/catalogue", PackageOpen, "Software catalogue"],
   ["/bundles", Boxes, "Product bundles"],
   ["/invoices", Receipt, "Invoices"],
+  ["/credit-notes", Receipt, "Credit notes"],
   ["/payments", Wallet, "Payments"],
   ["/organisation", Building2, "Organisation"],
 ] as const;
@@ -103,8 +105,10 @@ const adminNav = [
   ["/subscriptions", Layers, "Subscriptions"],
   ["/payments", Wallet, "Payments"],
   ["/invoices", Receipt, "Invoices"],
+  ["/credit-notes", Receipt, "Credit notes"],
   ["/coupons", TicketPercent, "Coupons"],
   ["/reports", ChartNoAxesCombined, "Reports"],
+  ["/gateway-operations", Wallet, "Gateway operations"],
   ["/notifications", Mail, "Notifications"],
   ["/api-clients", Plug, "API integrations"],
   ["/audit-logs", ScrollText, "Audit logs"],
@@ -362,9 +366,18 @@ export function App({ admin }: { admin: boolean }) {
                 <Routes>
                   <Route path="/" element={<AdminDashboard />} />
                   <Route path="/reports" element={<Reports />} />
+                  <Route
+                    path="/gateway-operations"
+                    element={<GatewayOperations />}
+                  />
                   <Route path="/settings" element={<AdminSettings />} />
                   {adminNav
-                    .filter((x) => !["/", "/reports"].includes(x[0]))
+                    .filter(
+                      (x) =>
+                        !["/", "/reports", "/gateway-operations"].includes(
+                          x[0],
+                        ),
+                    )
                     .map(([to, , label]) => (
                       <Route
                         key={to}
@@ -387,6 +400,7 @@ export function App({ admin }: { admin: boolean }) {
                   <Route path="/bundles" element={<Catalogue bundles />} />
                   <Route path="/subscriptions" element={<Subscriptions />} />
                   <Route path="/invoices" element={<Invoices />} />
+                  <Route path="/credit-notes" element={<CreditNotes />} />
                   <Route path="/payments" element={<Payments />} />
                   <Route
                     path="/organisation"

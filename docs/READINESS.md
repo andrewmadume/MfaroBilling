@@ -15,12 +15,20 @@
 | Existing Mfaro product integration | SDK and backend templates provided; no actual product repositories supplied |
 | Legal policies, taxation, retention and mandatory admin MFA | Require business/provider configuration and review |
 
+## Phase 2: billing lifecycle — implemented
+
+Phase 2 covers payment recovery, pause/resume, durable cancellation, provider refunds and credit notes. Customers can update the recurring card and inspect provider status without starting another checkout. Provider-managed retries remain the sole collection owner. Pause/resume preserves paid-period boundaries; resuming an expired period does not itself restore access.
+
+All schedule mutations and gateway refunds use durable idempotent operation records. Uncertain or interrupted actions cannot be sent again automatically. Read-only reconciliation confirms schedule state; uncertain refunds require a persisted provider acknowledgement or an audited operator determination with merchant evidence. Refunds to the original payment source create tax-allocated credit notes and customer PDF downloads. Bank-payout refunds and chargeback automation remain unsupported.
+
+See PHASE_2.md for scope, endpoints, configuration and deployment steps. External PayFast acceptance remains unverified; no live financial transactions were performed during implementation.
+
 ## Functional gaps beyond external credentials
 
 These remain engineering work, not merely an environment switch:
 
-- Immediate prorated plan upgrades, paid trials, pause/resume, sophisticated migration of multiple independent mandates into a bundle and self-service outstanding-payment recovery without duplicating mandates. Implemented changes are period-end only; terminated mandates require a new agreement. Operator support is the current recovery path.
-- Automatic provider refunds/chargebacks and a complete credit-note/refund-tax/reconciliation ledger. Refunds can be recorded after an externally completed transaction, with bounds checking; the application does not execute or fully account for them.
+- Immediate prorated plan upgrades, paid trials and sophisticated migration of multiple independent mandates into a bundle. Plan changes remain period-end only; terminated mandates require a new agreement. Payment recovery now supports card updates and provider-state inspection without a new charge; locked or cancelled mandates still require merchant assistance.
+- Bank-payout refund execution, chargeback automation and full accounting-system integration. Original-source gateway refunds, external-refund recording, cumulative tax allocation, credit-note PDFs and audited operation reconciliation are implemented. Real merchant acceptance is still required before enabling refund execution.
 - The complete requested analytics suite (cohort churn/retention, recovery rate, conversion/time-based revenue allocation, every filter, XLSX and PDF report export). Current reporting is basic MRR/ARR/ARPA and six-month gross cash with CSV export. Annual recurring values are normalised; full accounting revenue recognition is not implemented.
 - Full platform-administrator role management UI, owner-transfer workflow, support-ticket reply/resolution tools and exhaustive CRUD/filtering for every proposed entity. Existing admin screens are implemented only for the operations they expose, with no inert buttons.
 - Full company/SMTP/gateway/tax/branding/template configuration editors. Security-sensitive integration settings currently use private environment variables; a smaller encrypted application-settings form is available.

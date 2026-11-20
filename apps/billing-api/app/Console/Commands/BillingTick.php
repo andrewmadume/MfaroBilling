@@ -37,6 +37,13 @@ class BillingTick extends Command
 
                             return;
                         }
+                        if ($s->paused_at && $s->period_end?->isPast()) {
+                            if (in_array($s->status, ['active', 'past_due', 'grace_period'], true)) {
+                                $b->transition($s, 'suspended');
+                            }
+
+return;
+                        }
                         if ($s->status === 'active' && $s->period_end?->isPast()) {
                             $b->transition($s, 'past_due');
                             $s->update(['grace_ends_at' => $s->period_end->addDays(config('billing.grace_days'))]);

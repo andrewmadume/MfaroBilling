@@ -1,3 +1,4 @@
+import { LifecycleDialog, RecoveryDialog } from "./lifecycle";
 import { PlanChange } from "./plan-change";
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -530,6 +531,12 @@ export function Subscriptions() {
   });
   const [change, setChange] = useState<Subscription | null>(null);
   const [detail, setDetail] = useState<Subscription | null>(null);
+  const [lifecycle, setLifecycle] = useState<{
+    subscription: Subscription;
+    kind: "pause" | "resume";
+  } | null>(null);
+  const [recover, setRecover] = useState<Subscription | null>(null);
+  const [cancelKey, setCancelKey] = useState("");
   const [cancel, setCancel] = useState<Subscription | null>(null);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -601,6 +608,7 @@ export function Subscriptions() {
                 <div className="row">
                   <h3>{s.snapshot.name}</h3>
                   <Badge status={s.status} />
+                  {s.paused_at ? <Badge status="collections_paused" /> : null}
                 </div>
                 <p>{s.snapshot.items.map((i) => i.product_name).join(" · ")}</p>
                 <small>
@@ -629,16 +637,53 @@ export function Subscriptions() {
                 <button className="secondary" onClick={() => setDetail(s)}>
                   Details
                 </button>
-                {s.status === "active" && !s.cancel_at_period_end ? (
+                {s.status === "active" &&
+                !s.paused_at &&
+                !s.cancel_at_period_end ? (
                   <button className="secondary" onClick={() => setChange(s)}>
                     Change plan
+                  </button>
+                ) : null}
+                {s.status === "active" &&
+                !s.paused_at &&
+                s.gateway_status === "active" &&
+                !s.cancel_at_period_end ? (
+                  <button
+                    className="secondary"
+                    onClick={() =>
+                      setLifecycle({ subscription: s, kind: "pause" })
+                    }
+                  >
+                    Pause
+                  </button>
+                ) : null}
+                {s.paused_at &&
+                s.gateway_status === "paused" &&
+                !s.cancel_at_period_end ? (
+                  <button
+                    className="secondary"
+                    onClick={() =>
+                      setLifecycle({ subscription: s, kind: "resume" })
+                    }
+                  >
+                    Resume collections
+                  </button>
+                ) : null}
+                {["past_due", "grace_period", "suspended"].includes(s.status) &&
+                !s.paused_at &&
+                !s.cancel_at_period_end ? (
+                  <button className="primary" onClick={() => setRecover(s)}>
+                    Resolve payment
                   </button>
                 ) : null}
                 {!["cancelled", "expired"].includes(s.status) &&
                 !s.cancel_at_period_end ? (
                   <button
                     className="text-button danger"
-                    onClick={() => setCancel(s)}
+                    onClick={() => {
+                      setCancelKey(crypto.randomUUID());
+                      setCancel(s);
+                    }}
                   >
                     Cancel
                   </button>
@@ -664,6 +709,19 @@ export function Subscriptions() {
       {detail ? (
         <SubscriptionDetail sub={detail} onClose={() => setDetail(null)} />
       ) : null}
+      {lifecycle ? (
+        <LifecycleDialog
+          subscription={lifecycle.subscription}
+          kind={lifecycle.kind}
+          onClose={() => setLifecycle(null)}
+        />
+      ) : null}
+      {recover ? (
+        <RecoveryDialog
+          subscription={recover}
+          onClose={() => setRecover(null)}
+        />
+      ) : null}
       {cancel ? (
         <Modal title="Cancel subscription" onClose={() => setCancel(null)}>
           <p>
@@ -682,12 +740,18 @@ export function Subscriptions() {
               onClick={async () => {
                 setBusy(cancel.id);
                 try {
-                  await post(`/subscriptions/${cancel.id}/cancel`, {
-                    immediate: false,
-                  });
+                  const result = await post<{ status: string }>(
+                    `/subscriptions/${cancel.id}/cancel`,
+                    { immediate: false },
+                    { "Idempotency-Key": cancelKey },
+                  );
                   client.invalidateQueries();
                   setCancel(null);
-                  notify("Cancellation recorded.");
+                  notify(
+                    result.status === "succeeded"
+                      ? "Cancellation confirmed."
+                      : "Provider outcome uncertain. Contact support for reconciliation before submitting another cancellation.",
+                  );
                 } catch (e) {
                   setError((e as Error).message);
                 } finally {

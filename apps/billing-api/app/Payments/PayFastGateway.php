@@ -9,6 +9,11 @@ use Illuminate\Support\Facades\Http;
 
 class PayFastGateway implements PaymentGateway
 {
+    public function ensureConfigured(): void
+    {
+        $this->config();
+    }
+
     private function config(): array
     {
         $c = config('billing.payfast');
@@ -76,19 +81,59 @@ class PayFastGateway implements PaymentGateway
     {
         $c = $this->config();
         abort_unless(preg_match('/^[a-zA-Z0-9-]{16,64}$/', $token), 422, 'Invalid provider token.');
+
+        return $this->requestApi($method, 'subscriptions/'.$token.'/'.$action, $body);
+    }
+
+    private function requestApi(string $method, string $path, array $body = [], bool $eligibility = false): array
+    {
+        $c = $this->config();
         $headers = ['merchant-id' => $c['merchant_id'], 'version' => 'v1', 'timestamp' => now('Africa/Johannesburg')->format('Y-m-d\TH:i:s')];
-        $sign = array_merge($headers, $body);
-        $sign['passphrase'] = $c['passphrase'];
+        $sign = array_merge($headers, $body, ['passphrase' => $c['passphrase']]);
         ksort($sign);
         $pairs = [];
-        foreach ($sign as $k => $v) {
-            $pairs[] = $k.'='.urlencode($v);
+        foreach ($sign as $key => $value) {
+            $pairs[] = $key.'='.urlencode((string) $value);
         }$headers['signature'] = md5(implode('&', $pairs));
-        $url = 'https://api.payfast.co.za/subscriptions/'.$token.'/'.$action.($c['sandbox'] ? '?testing=true' : '');
-        $response = Http::timeout(20)->withHeaders($headers)->send($method, $url, $body ? ['json' => $body] : []);
-        abort_unless($response->successful() && $response->json('status') === 'success' && $response->json('data.response') !== false, 502, 'PayFast subscription operation failed; no local change was committed.');
+        $url = 'https://api.payfast.co.za/'.$path.($c['sandbox'] ? '?testing=true' : '');
+        $response = Http::timeout(20)->withOptions(['allow_redirects' => false])->withHeaders($headers)->send($method, $url, $body ? ['json' => $body] : []);
+        $json = $response->json();
+        $valid = is_array($json) && ($eligibility ? in_array($json['status'] ?? '', ['success', 'REFUNDABLE', 'COMPLETED', 'NOT_AVAILABLE'], true) : (($json['status'] ?? '') === 'success' && ($json['data']['response'] ?? false) !== false));
+        abort_unless($response->successful() && $valid, 502, 'PayFast operation did not return a confirmed successful result. Reconcile any uncertain mutation before retrying.');
 
-        return $response->json();
+        return $json;
+    }
+
+    public function pause(string $token, int $cycles = 1): void
+    {
+        $this->api('PUT', $token, 'pause', ['cycles' => $cycles]);
+    }
+
+    public function resume(string $token): void
+    {
+        $this->api('PUT', $token, 'unpause');
+    }
+
+    public function cardUpdateUrl(string $token): string
+    {
+        abort_unless(preg_match('/^[a-zA-Z0-9-]{16,64}$/', $token), 422, 'Invalid recurring token.');
+
+        return $this->base().'/eng/recurring/update/'.rawurlencode($token).'?return='.rawurlencode(config('billing.portal_url').'/payments');
+    }
+
+    public function refundEligibility(string $reference): array
+    {
+        abort_unless(preg_match('/^[a-zA-Z0-9_-]{1,120}$/', $reference), 422, 'Invalid payment reference.');
+        $json = $this->requestApi('GET', 'refunds/query/'.rawurlencode($reference), [], true);
+
+        return $json['data']['response'] ?? $json['data'] ?? $json;
+    }
+
+    public function refund(string $reference, int $amount, string $reason): void
+    {
+        abort_unless(config('billing.payfast.refunds_enabled'), 503, 'PayFast refund execution is disabled.');
+        abort_unless(preg_match('/^[a-zA-Z0-9_-]{1,120}$/', $reference), 422, 'Invalid payment reference.');
+        $this->requestApi('POST', 'refunds/'.rawurlencode($reference), ['amount' => $amount, 'reason' => $reason, 'notify_buyer' => 1, 'notify_merchant' => 1]);
     }
 
     public function cancel(string $token): void

@@ -9,6 +9,7 @@ use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Product;
 use App\Models\Subscription;
+use App\Payments\RefundService;
 use App\Services\Money;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
@@ -17,12 +18,12 @@ use Illuminate\Support\Str;
 
 class AdminController
 {
-    private const TABLES = ['customers' => 'users', 'organisations' => 'organisations', 'products' => 'products', 'plans' => 'plans', 'bundles' => 'bundles', 'subscriptions' => 'subscriptions', 'payments' => 'payments', 'invoices' => 'invoices', 'coupons' => 'coupons', 'audit-logs' => 'audit_logs', 'support' => 'support_tickets', 'api-clients' => 'api_clients', 'notifications' => 'outbox_events'];
+    private const TABLES = ['customers' => 'users', 'organisations' => 'organisations', 'products' => 'products', 'plans' => 'plans', 'bundles' => 'bundles', 'subscriptions' => 'subscriptions', 'payments' => 'payments', 'invoices' => 'invoices', 'coupons' => 'coupons', 'audit-logs' => 'audit_logs', 'support' => 'support_tickets', 'api-clients' => 'api_clients', 'notifications' => 'outbox_events', 'credit-notes' => 'credit_notes'];
 
     public function dashboard(Request $r)
     {
         $currency = $r->query('currency', 'ZAR');
-        $s = Subscription::where('currency', $currency)->whereIn('status', ['active', 'past_due', 'grace_period'])->get();
+        $s = Subscription::where('currency', $currency)->whereNull('paused_at')->whereIn('status', ['active', 'past_due', 'grace_period'])->get();
         $mrr = $s->sum(fn ($x) => Money::minor($x->snapshot['subtotal']) / ($x->interval === 'annual' ? 12 : 1));
         $p = Payment::where('currency', $currency)->where('status', 'completed')->where('paid_at', '>=', now()->subMonths(6)->startOfMonth())->get();
         $series = [];
@@ -31,7 +32,7 @@ class AdminController
             $series[] = ['month' => $d->format('M'), 'collected' => $p->filter(fn ($x) => substr($x->paid_at, 0, 7) === $d->format('Y-m'))->sum(fn ($x) => Money::minor($x->amount)) / 100];
         }
 
-        return ['currency' => $currency, 'customers' => DB::table('users')->count(), 'organisations' => DB::table('organisations')->count(), 'active_subscriptions' => $s->count(), 'trial_subscriptions' => Subscription::where('status', 'trialing')->count(), 'mrr' => Money::decimal((int) round($mrr)), 'arr' => Money::decimal((int) round($mrr * 12)), 'cash_collected' => Money::decimal((int) $p->sum(fn ($x) => Money::minor($x->amount))), 'arpa' => Money::decimal($s->isEmpty() ? 0 : (int) round($mrr / max(1, $s->pluck('organisation_id')->unique()->count()))), 'revenue_series' => $series, 'recent_payments' => Payment::latest()->limit(8)->get()];
+        return ['currency' => $currency, 'customers' => DB::table('users')->count(), 'organisations' => DB::table('organisations')->count(), 'active_subscriptions' => $s->count(), 'trial_subscriptions' => Subscription::where('status', 'trialing')->count(), 'mrr' => Money::decimal((int) round($mrr)), 'arr' => Money::decimal((int) round($mrr * 12)), 'cash_collected' => Money::decimal((int) $p->sum(fn ($x) => Money::minor($x->amount))), 'arpa' => Money::decimal($s->isEmpty() ? 0 : (int) round($mrr / max(1, $s->pluck('organisation_id')->unique()->count()))), 'revenue_series' => $series, 'refund_total' => Money::decimal((int) DB::table('credit_notes')->where('currency', $currency)->where('issued_at', '>=', now()->subMonths(6)->startOfMonth())->get()->sum(fn ($n) => Money::minor((string) $n->total))), 'recent_payments' => Payment::latest()->limit(8)->get()];
     }
 
     public function index(Request $r, string $resource)
@@ -46,7 +47,7 @@ class AdminController
             $q->where($col, 'like', '%'.substr($r->query('search'), 0, 100).'%');
         }
 
-return $q->orderByDesc('created_at')->paginate(20, $columns);
+        return $q->orderByDesc('created_at')->paginate(20, $columns);
     }
 
     private function audit(Request $r, string $action, array $payload): void
@@ -162,15 +163,9 @@ return $q->orderByDesc('created_at')->paginate(20, $columns);
     {
         $d = $r->validate(['amount' => 'required|regex:/^\d{1,10}\.\d{2}$/', 'reference' => 'required|string|max:120', 'reason' => 'required|string|max:500']);
 
-        return DB::transaction(function () use ($r, $id, $d) {
-            $p = Payment::whereKey($id)->lockForUpdate()->firstOrFail();
-            $refunded = DB::table('payment_refunds')->where('payment_id', $id)->get()->sum(fn ($x) => Money::minor($x->amount));
-            abort_if($refunded + Money::minor($d['amount']) > Money::minor($p->amount), 422, 'Refund exceeds payment.');
-            DB::table('payment_refunds')->insert($d + ['id' => Str::uuid(), 'payment_id' => $id, 'created_at' => now(), 'updated_at' => now()]);
-            $this->audit($r, 'refund.recorded', ['payment_id' => $id, 'reference' => $d['reference']]);
+        $note = app(RefundService::class)->recordExternal(Payment::findOrFail($id), $d['amount'], $d['reference'], $d['reason'], $r->user()->id);
 
-            return ['message' => 'Externally completed refund recorded. This does not send a refund to PayFast.'];
-        });
+        return ['message' => 'Externally completed refund and credit note recorded. No payment was sent.', 'credit_note' => $note];
     }
 
     public function csv(Request $r)
@@ -182,7 +177,7 @@ return $q->orderByDesc('created_at')->paginate(20, $columns);
             fputcsv($out, ['Reference', 'Organisation', 'Currency', 'Amount', 'Status', 'Paid at'], ',', '"', '');
             Payment::where('currency', $currency)->orderBy('id')->chunk(200, function ($rows) use ($out) {
                 foreach ($rows as $p) {
-                    fputcsv($out,[$p->provider_reference, $p->organisation_id, $p->currency, $p->amount, $p->status, $p->paid_at],',','"','');
+                    fputcsv($out, [$p->provider_reference, $p->organisation_id, $p->currency, $p->amount, $p->status, $p->paid_at], ',', '"', '');
                 }
             });
             fclose($out);
